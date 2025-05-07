@@ -372,7 +372,7 @@ HAL_StatusTypeDef EEPROM_Read(SPI_HandleTypeDef* SPI, uint8_t modSel, uint8_t* d
 //Takes in number of points to write n
 //Takes in pointer to 24-bit address, assuming it's stored as 3 8-bit data points in an array
 //Returns HAL status
-HAL_StatusTypeDef EEPROM_Write_Bulk(SPI_HandleTypeDef* SPI, uint8_t modSel, uint8_t* data, uint8_t n, uint8_t* address){
+HAL_StatusTypeDef EEPROM_Write_Bulk(SPI_HandleTypeDef* SPI, uint8_t modSel, uint8_t* data, uint16_t n, uint8_t* address){
 	//Parse modSel for bank bit
 	uint8_t bank = (modSel & 0x04) >> 2;
 
@@ -408,7 +408,7 @@ HAL_StatusTypeDef EEPROM_Write_Bulk(SPI_HandleTypeDef* SPI, uint8_t modSel, uint
 		HAL_GPIO_WritePin(GPIOA, HOLD_HI, i & 0x02);
 
 		//Inner loop to actually write, one full row at a time
-		for(uint8_t j = i; j < n << 2; j += 4){
+		for(uint16_t j = i; j < n << 2; j += 4){
 
 			//Attempt to send data[i] to module i, return status on failure
 			if((retVal = HAL_SPI_Transmit(SPI, data + j, 1, 1)) != HAL_OK){
@@ -448,7 +448,7 @@ HAL_StatusTypeDef EEPROM_Write_Bulk(SPI_HandleTypeDef* SPI, uint8_t modSel, uint
 //Takes in number of points to write n
 //Takes in pointer to 24-bit address, assuming it's stored as 3 8-bit data points in an array
 //Returns HAL status
-HAL_StatusTypeDef EEPROM_Read_Bulk(SPI_HandleTypeDef* SPI, uint8_t modSel, uint8_t* data, uint8_t n, uint8_t* address){
+HAL_StatusTypeDef EEPROM_Read_Bulk(SPI_HandleTypeDef* SPI, uint8_t modSel, uint8_t* data, uint16_t n, uint8_t* address){
 	//Parse modSel for bank bit
 	uint8_t bank = (modSel & 0x04) >> 2;
 
@@ -479,7 +479,7 @@ HAL_StatusTypeDef EEPROM_Read_Bulk(SPI_HandleTypeDef* SPI, uint8_t modSel, uint8
 		HAL_GPIO_WritePin(GPIOA, HOLD_HI, i & 0x02);
 
 		//For loop to read each data point
-		for(uint8_t j = i; j < n << 2; j += 4){
+		for(uint16_t j = i; j < n << 2; j += 4){
 
 			//Attempt to receive data[i] from module i, return status on failure
 			if((retVal = HAL_SPI_Receive(SPI, data + j, 1, 1)) != HAL_OK){
@@ -499,4 +499,18 @@ HAL_StatusTypeDef EEPROM_Read_Bulk(SPI_HandleTypeDef* SPI, uint8_t modSel, uint8
 
 	//Return status
 	return retVal;
+}
+
+//Function to convert 24-bit address stored in 32-bit int to 8-bit int array
+//Takes in 32-bit address
+//Takes in pointer to 8bit destination
+//No return value
+void Convert_Address(uint32_t address, uint8_t* address_8bit){
+
+	//2nd MSB -> byte 0
+	//2nd LSB -> byte 1
+	//LSB -> byte 2
+	address_8bit[0] = (uint8_t) ((address & 0x00FF0000) >> 16);
+	address_8bit[1] = (uint8_t) ((address & 0x0000FF00) >> 8);
+	address_8bit[2] = (uint8_t) (address & 0x000000FF);
 }

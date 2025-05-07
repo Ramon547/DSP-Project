@@ -20,7 +20,7 @@ extern const uint8_t VALS[];
 //Defines
 #define CODEC_DELAY	10
 #define ADDRESS		0x34
-#define INIT_VALS	17
+#define INIT_VALS	19
 
 //Function prototypes
 HAL_StatusTypeDef W32_Codec(I2S_HandleTypeDef* Codec, uint32_t* W32);
@@ -29,5 +29,8 @@ HAL_StatusTypeDef I2S_Codec(I2S_HandleTypeDef* Codec, uint16_t* I2S);
 HAL_StatusTypeDef Codec_W32(I2S_HandleTypeDef* Codec, uint32_t* W32);
 HAL_StatusTypeDef Codec_PJ(I2S_HandleTypeDef* Codec, uint8_t* PJ);
 HAL_StatusTypeDef Codec_I2S(I2S_HandleTypeDef* Codec, uint16_t* I2S);
+void W32_PWM(TIM_HandleTypeDef* tim, uint32_t* W32);
+void PJ_PWM(TIM_HandleTypeDef* tim, uint8_t* PJ);
+void I2S_PWM(TIM_HandleTypeDef* tim, uint16_t* I2S);
 
 #endif /* SRC_CODEC_DRIVER_H_ */

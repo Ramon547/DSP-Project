@@ -12,14 +12,14 @@
 #include "Codec_Driver.h"
 
 const uint8_t REGS[] = {0x1F, 0x32, 0x35, 0x56, 0x58,
-						0x45, 0x4B, 0x05, 0x05, 0x07,
-						0x07, 0x08, 0x68, 0x6A, 0x6C,
-						0x0A, 0x5E};
+						0x45, 0x4B, 0x5C, 0x5A, 0x05,
+						0x05, 0x07, 0x07, 0x08, 0x68,
+						0x6A, 0x6C, 0x0A, 0x5E};
 
-const uint8_t VALS[] = {0xFF, 0xFC, 0xE1, 0x50, 0x50,
-						0x00, 0x00, 0x7F, 0x7F, 0x7F,
-						0x7F, 0x05, 0x38, 0x31, 0x26,
-						0x00, 0x0C};
+const uint8_t VALS[] = {0xFF, 0xFC, 0xE1, 0x51, 0x51,
+						0x00, 0x00, 0x00, 0x00, 0x7F,
+						0x7F, 0x7F, 0x7F, 0x05, 0x38,
+						0x31, 0x26, 0x00, 0x0C};
 
 //Function to send W32 formatted data to codec via I2S
 //Takes in pointer to I2S handle
@@ -130,4 +130,45 @@ HAL_StatusTypeDef Codec_I2S(I2S_HandleTypeDef* Codec, uint16_t* I2S){
 
 	//Return status of attempting to receive I2S data
 	return HAL_I2S_Receive(Codec, I2S, 3, CODEC_DELAY);
+}
+
+//Function to send W32 data to PWM output
+//Takes in pointer to timer
+//Takes in pointer to W32 data
+//No output
+void W32_PWM(TIM_HandleTypeDef* tim, uint32_t* W32){
+
+	//Output left data as 10 MSBs of the 24 bits of data in the 32-bit left W32 element
+	__HAL_TIM_SET_COMPARE(tim, TIM_CHANNEL_1, (W32[0] & 0x00FFC000) >> 14);
+	//Output right data as 10 MSBs of the 24 bits of data in the 32-bit right W32 element
+	__HAL_TIM_SET_COMPARE(tim, TIM_CHANNEL_2, (W32[1] & 0x00FFC000) >> 14);
+
+}
+
+//Function to send PJ data to PWM output
+//Takes in pointer to timer
+//Takes in pointer to PJ data
+//No output
+//Calls W32_PWM and converts
+void PJ_PWM(TIM_HandleTypeDef* tim, uint8_t* PJ){
+
+	uint32_t W32[2];
+
+	PJ_W32(PJ, W32, 1);
+
+	W32_PWM(tim, W32);
+}
+
+//Function to send I2S data to PWM output
+//Takes in pointer to timer
+//Takes in pointer to I2S data
+//No output
+//Calls W32_PWM and converts
+void I2S_PWM(TIM_HandleTypeDef* tim, uint16_t* I2S){
+
+	uint32_t W32[2];
+
+	I2S_W32(W32, I2S, 1);
+
+	W32_PWM(tim, W32);
 }

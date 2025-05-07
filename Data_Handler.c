@@ -7,7 +7,12 @@
 
 #include <stdint.h>
 #include "stm32h7xx_hal.h"
+#include "stm32h7xx_hal_cordic.h"
 #include "Data_Handler.h"
+
+uint32_t Lookup_Table[SIZE_DECL];
+uint16_t SIZE = SIZE_DECL;
+uint16_t SIZE_MINUS_ONE = SIZE_MINUS_ONE_DECL;
 
 //Function to convert I2S data to 4-byte EEPROM-friendly format
 //Takes in I2S data as an array, assumed to be of the form uint16_t* I2S[n][3]
@@ -24,7 +29,7 @@ void I2S_PJ(uint16_t* I2S, uint8_t* PJ, uint32_t n){
 	n = n + (n << 1);
 
 	//For loop to iterate through all data points
-	for(uint8_t i = 0, j = 0; i < n - 2 && j < m - 7; i += 3, j += 8){
+	for(uint32_t i = 0, j = 0; i < n - 2 && j < m - 7; i += 3, j += 8){
 
 		//Assign left data to PJ format
 		//First byte is initialized to 0
@@ -58,7 +63,7 @@ void PJ_I2S(uint8_t* PJ, uint16_t* I2S, uint32_t n){
 	n = n + (n << 1);
 
 	//For loop to iterate through all data points
-	for(uint8_t i = 0, j = 0; i < n && j < m; i += 3, j += 8){
+	for(uint32_t i = 0, j = 0; i < n && j < m; i += 3, j += 8){
 
 		//PJ[x][0] is ignored here
 		//PJ[x][1] becomes the first byte of I2S[i]
@@ -92,7 +97,7 @@ void PJ_W32(uint8_t* PJ, uint32_t* W32, uint32_t n){
 	uint32_t m = n << 2;
 
 	//For loop to iterate through all data points
-	for(uint8_t i = 0, j = 0; i < n && j < m - 3; i++, j += 4){
+	for(uint32_t i = 0, j = 0; i < n && j < m - 3; i++, j += 4){
 		W32[i] = (((uint32_t) PJ[j]) << 24) | (((uint32_t) PJ[j + 1]) << 16) | (((uint32_t) PJ[j + 2]) << 8) | (uint32_t) PJ[j + 3];
 	}
 }
@@ -108,7 +113,7 @@ void W32_PJ(uint32_t* W32, uint8_t* PJ, uint32_t n){
 	uint32_t m = n << 2;
 
 	//For loop to iterate through all data points
-	for(uint8_t i = 0, j = 0; i < n && j < m - 3; i++, j += 4){
+	for(uint32_t i = 0, j = 0; i < n && j < m - 3; i++, j += 4){
 		//MSB -> PJ[0] ... LSB -> PJ[3]
 		PJ[j] = (uint8_t) ((W32[i] & 0xFF000000) >> 24);
 		PJ[j + 1] = (uint8_t) ((W32[i] & 0x00FF0000) >> 16);
@@ -131,7 +136,7 @@ void W32_I2S(uint32_t* W32, uint16_t* I2S, uint32_t n){
 	n = m + n;
 
 	//For loop to iterate through all data points
-	for(uint8_t i = 0, j = 0; i < n - 2 && j < m - 1; i += 3, j += 2){
+	for(uint32_t i = 0, j = 0; i < n - 2 && j < m - 1; i += 3, j += 2){
 
 		//First 16-bit word is just bytes 2 and 1 of the left data
 		I2S[i] = (uint16_t) ((W32[j] & 0x00FFFF00) >> 8);
@@ -158,7 +163,7 @@ void I2S_W32(uint32_t* W32, uint16_t* I2S, uint32_t n){
 	n = m + n;
 
 	//For loop to iterate through all data points
-	for(uint8_t i = 0, j = 0; i < n - 2 && j < m - 1; i += 3, j += 2){
+	for(uint32_t i = 0, j = 0; i < n - 2 && j < m - 1; i += 3, j += 2){
 
 		//Left W32 is 0x00 followed by the first 16-bit word, followed by the MSB of the second 16-bit word
 		W32[j] = (((uint32_t) I2S[i]) << 8) | (((uint32_t) (I2S[i + 1] & 0xFF00)) >> 8);
@@ -356,4 +361,69 @@ void Display_Serial(UART_HandleTypeDef* UART, uint8_t* data, uint16_t n, uint8_t
 
 	//Send data to serial connection
 	HAL_UART_Transmit(UART, holder, m, m);
+}
+
+//Function to generate trig lookup table
+//Takes in only a pointer to the cordic instance
+//Cordic function is not specified
+//Lookup table is not accessible, except by getter functions
+void Table_Gen(CORDIC_HandleTypeDef* cordic){
+
+	//Instantiate input angle and output trig
+	uint32_t angle = 0x00000000;
+	uint32_t trig = 0;
+
+	//For loop to generate sine/cosine using quadrant symmetry
+	for(uint32_t i = 0; i < SIZE >> 2; i++){
+
+		//Establish angle as i shifted to a 31-bit number
+		angle = ((uint32_t) i) << 19;
+
+		//Clear sign bit for Q1.31 format
+		angle = angle & 0x7FFFFFFF;
+
+		//Get result of sine/cosine as configured elsewhere
+		HAL_CORDIC_Calculate(cordic, &angle, &trig, 1, 10);
+
+		//Renormalize output to W32 format
+		trig = trig >> 8;
+		trig = trig & 0x00FFFFFF;
+
+		//Store output in lookup table utilizing quadrant symmetry
+		Lookup_Table[i] = trig;
+		Lookup_Table[((SIZE >> 1) - 1) - i] = trig;
+		Lookup_Table[i + (SIZE >> 1)] = -trig;
+		Lookup_Table[(SIZE - 1) - i] = -trig;
+	}
+}
+
+//Function to retrieve sine/cosine value of input from lookup table
+//Takes in the angle
+//Takes in a pointer to the W32 output destination
+void Table_Get_W32(uint16_t angle, uint32_t* value){
+
+	//Look up value in table, truncating angle to 12 bits
+	*value = Lookup_Table[angle & 0x03FF];
+}
+
+//Function to retrieve sine/cosine value of input from lookup table
+//Takes in the angle
+//Takes in a pointer to the PJ output destination
+//Calls Table_Get_W32 and converts
+void Table_Get_PJ(uint16_t angle, uint8_t* value){
+
+	//Placeholder for W32 value
+	uint32_t W32[2] = {0};
+
+	//Converts the whole data point to W32 before getting the angle
+	//This allows the angle to be retrieved for just left or right
+	//And it maintains the value in the next memory location
+	//Even if that value is not meant to be part of this data structure by mistake
+	PJ_W32(value, W32, 1);
+
+	//Look up value in W32 format
+	Table_Get_W32(angle, W32);
+
+	//Convert to PJ and store in input variable
+	W32_PJ(W32, value, 1);
 }

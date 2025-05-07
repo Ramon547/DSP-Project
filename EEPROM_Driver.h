@@ -37,7 +37,8 @@ HAL_StatusTypeDef EEPROM_Write_SR_Mod(SPI_HandleTypeDef* SPI, uint8_t modSel, ui
 HAL_StatusTypeDef EEPROM_Write_SR_BC(SPI_HandleTypeDef* SPI, uint8_t modSel, uint8_t* SR);
 HAL_StatusTypeDef EEPROM_Write(SPI_HandleTypeDef* SPI, uint8_t modSel, uint8_t* data, uint8_t* address);
 HAL_StatusTypeDef EEPROM_Read(SPI_HandleTypeDef* SPI, uint8_t modSel, uint8_t* data, uint8_t* address);
-HAL_StatusTypeDef EEPROM_Write_Bulk(SPI_HandleTypeDef* SPI, uint8_t modSel, uint8_t* data, uint8_t n, uint8_t* address);
-HAL_StatusTypeDef EEPROM_Read_Bulk(SPI_HandleTypeDef* SPI, uint8_t modSel, uint8_t* data, uint8_t n, uint8_t* address);
+HAL_StatusTypeDef EEPROM_Write_Bulk(SPI_HandleTypeDef* SPI, uint8_t modSel, uint8_t* data, uint16_t n, uint8_t* address);
+HAL_StatusTypeDef EEPROM_Read_Bulk(SPI_HandleTypeDef* SPI, uint8_t modSel, uint8_t* data, uint16_t n, uint8_t* address);
+void Convert_Address(uint32_t address, uint8_t* address_8bit);
 
 #endif //EEPROM_DRIVER_H_
