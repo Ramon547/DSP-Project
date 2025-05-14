@@ -139,9 +139,9 @@ HAL_StatusTypeDef Codec_I2S(I2S_HandleTypeDef* Codec, uint16_t* I2S){
 void W32_PWM(TIM_HandleTypeDef* tim, uint32_t* W32){
 
 	//Output left data as 10 MSBs of the 24 bits of data in the 32-bit left W32 element
-	__HAL_TIM_SET_COMPARE(tim, TIM_CHANNEL_1, (W32[0] & 0x00FFC000) >> 14);
+	__HAL_TIM_SET_COMPARE(tim, TIM_CHANNEL_1, ((W32[0] + 0x00800000) >> 14) & 1023);
 	//Output right data as 10 MSBs of the 24 bits of data in the 32-bit right W32 element
-	__HAL_TIM_SET_COMPARE(tim, TIM_CHANNEL_2, (W32[1] & 0x00FFC000) >> 14);
+	__HAL_TIM_SET_COMPARE(tim, TIM_CHANNEL_2, ((W32[1] + 0x00800000) >> 14) & 1023);
 
 }
 

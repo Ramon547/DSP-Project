@@ -25,6 +25,8 @@
 #include "Data_Handler.h"
 #include "Codec_Driver.h"
 #include "DSP.h"
+#include "Screen.h"
+#include "Encoder.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -131,6 +133,8 @@ int main(void)
   MX_CORDIC_Init();
   MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
+
+
   EEPROM_Init();
   PWM_Init();
   Table_Gen(&hcordic);
@@ -138,12 +142,12 @@ int main(void)
   uint32_t count = 0;
   uint8_t state = 0;
   uint16_t index = 0;
-  uint8_t vol = 0x00;
+  uint8_t vol = 0xFF;
   uint8_t echoes = 0;
   uint8_t scale = 0;
-  uint8_t holder[4][2] = {0};
-  uint8_t A = 'A';
+  uint8_t holder[8][3] = {0};
   uint8_t display[2][4] = {0};
+  uint8_t A = 'A';
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -166,24 +170,22 @@ int main(void)
 						Table_Get_W32(index & SIZE_MINUS_ONE, audio);
 						Table_Get_W32(index & SIZE_MINUS_ONE, audio + 1);
 
+						Volume_W32(audio, 1, vol);
 						W32_PJ(audio, display[0], 2);
 						Display_Serial(&huart4, display[0], 8, HEX, holder[0]);
-
-						buffer[index & SIZE_MINUS_ONE][0] = audio[0];
-						buffer[index & SIZE_MINUS_ONE][1] = audio[1];
-
-						Volume_W32(audio, 1, vol);
 
 						W32_PWM(&htim1, audio);
 						index++;
 						count++;
-						vol = vol ^ (0xFF * (count > (UPTO >> 1)));
+
 						address += 2;
 					}while((count & SIZE) != 0);
 
-					Convert_Address(address, address_8bit);
-					W32_PJ(&buffer[0][0], &write[0][0], SIZE);
-					EEPROM_Write_Bulk(&hspi1, (address & 0x00020000) >> 11, &write[0][0], SIZE << 1, address_8bit);
+					vol = vol ^ 0xFF;
+
+					//Convert_Address(address, address_8bit);
+					//W32_PJ(&buffer[0][0], &write[0][0], SIZE);
+					//EEPROM_Write_Bulk(&hspi1, (address & 0x00020000) >> 11, &write[0][0], SIZE << 1, address_8bit);
 				}
 				break;
 
@@ -192,20 +194,20 @@ int main(void)
 
 					count = 0;
 
+					echoes = (count >> 14) + 1;
+					scale = 64;
+
 					do{
-						echoes = (count >> 14) + 1;
-						scale = 64;
 
 						Table_Get_W32(index & SIZE_MINUS_ONE, audio);
 						Table_Get_W32(index & SIZE_MINUS_ONE, audio + 1);
-
-						W32_PJ(audio, display[0], 2);
-						Display_Serial(&huart4, display[0], 8, HEX, holder[0]);
 
 						buffer[index & SIZE_MINUS_ONE][0] = audio[0];
 						buffer[index & SIZE_MINUS_ONE][1] = audio[1];
 
 						Reverb_W32(audio, &past[0][0], 0x00003FFF, echoes, scale);
+						W32_PJ(audio, display[0], 2);
+						Display_Serial(&huart4, display[0], 8, HEX, holder[0]);
 
 						W32_PWM(&htim1, audio);
 
@@ -225,15 +227,13 @@ int main(void)
 
 					count = 0;
 
+					echoes = (count >> 14) + 1;
+					scale = 64;
+
 					do{
-						echoes = (count >> 14) + 1;
-						scale = 64;
 
 						Table_Get_W32(index & SIZE_MINUS_ONE, audio);
 						Table_Get_W32(index & SIZE_MINUS_ONE, audio + 1);
-
-						W32_PJ(audio, display[0], 2);
-						Display_Serial(&huart4, display[0], 8, HEX, holder[0]);
 
 						buffer[index & SIZE_MINUS_ONE][0] = audio[0];
 						buffer[index & SIZE_MINUS_ONE][1] = audio[1];
@@ -241,6 +241,8 @@ int main(void)
 						Reverb_W32(audio, &past[0][0], 0x00003FFF, echoes, scale);
 
 						Volume_W32(audio, 1, vol);
+						W32_PJ(audio, display[0], 2);
+						Display_Serial(&huart4, display[0], 8, HEX, holder[0]);
 
 						W32_PWM(&htim1, audio);
 
@@ -248,6 +250,8 @@ int main(void)
 						count++;
 						address += 2;
 					}while((count & SIZE) != 0);
+
+					vol = vol ^ 0xFF;
 
 					Convert_Address(address, address_8bit);
 					W32_PJ(&buffer[0][0], &write[0][0], SIZE);
@@ -269,23 +273,20 @@ int main(void)
 						W32_PJ(audio, display[0], 2);
 						Display_Serial(&huart4, display[0], 8, HEX, holder[0]);
 
-						buffer[index & SIZE_MINUS_ONE][0] = audio[0];
-						buffer[index & SIZE_MINUS_ONE][1] = audio[1];
-
 						W32_PWM(&htim1, audio);
 						index++;
 						count++;
 						address += 2;
 					}while((count & SIZE) != 0);
 
-					Convert_Address(address, address_8bit);
-					W32_PJ(&buffer[0][0], &write[0][0], SIZE);
-					EEPROM_Write_Bulk(&hspi1, (address & 0x00020000) >> 11, &write[0][0], SIZE << 1, address_8bit);
+					//Convert_Address(address, address_8bit);
+					//W32_PJ(&buffer[0][0], &write[0][0], SIZE);
+					//EEPROM_Write_Bulk(&hspi1, (address & 0x00020000) >> 11, &write[0][0], SIZE << 1, address_8bit);
 				}
 				break;
 		}
 
-		//state++;
+		state++;
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
